@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid-based DNA Sequence Alignment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            flex: 1;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .option-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .alignment-block {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .match-title {
+            background-color: #f0f0f0;
+            padding: 8px 12px;
+            margin: 0;
+            border-bottom: 2px solid #3498db;
+            font-size: 14px;
+        }
+        .match-value {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .alignment-grid {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .base-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 1px;
+            width: 18px;
+        }
+        .base {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            font-size: 14px;
+            border-radius: 2px;
+        }
+        .reference-base {
+            color: #2980b9;
+            font-weight: bold;
+        }
+        .sanger-base {
+            color: #16a085;
+            font-weight: bold;
+        }
+        .match-indicator {
+            height: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            color: #7f8c8d;
+        }
+        .empty-space {
+            color: transparent;
+        }
+        .match-base {
+            background-color: #e8f6f3;
+        }
+        .mismatch-base {
+            background-color: #fcf3f2;
+        }
+        .position-header {
+            width: 18px;
+            text-align: center;
+            font-size: 10px;
+            color: #95a5a6;
+            margin-bottom: 4px;
+        }
+        .instructions {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Grid-based DNA Sequence Alignment</h1>
+    
+    <div class="instructions">
+        <p><strong>Instructions:</strong> Enter your reference and Sanger sequences below. The tool will find the top 5 positions where the sequences align best.</p>
+    </div>
+
+    <div class="container">
+        <div class="input-group">
+            <label for="reference">Reference Sequence:</label>
+            <textarea id="reference" placeholder="Enter reference DNA sequence...">ACGTACGTACGTACGTACGTACGT</textarea>
+        </div>
+        <div class="input-group">
+            <label for="sanger">Sanger Sequence:</label>
+            <textarea id="sanger" placeholder="Enter Sanger DNA sequence...">TACGTAC</textarea>
+        </div>
+    </div>
+    
+    <div class="options">
+        <div class="option-group">
+            <label for="minOverlap">Minimum Overlap:</label>
+            <input type="number" id="minOverlap" min="1" value="3" style="width: 60px;">
+            <span>bases</span>
+        </div>
+    </div>
+
+    <button onclick="findTopMatches()">Find Top 5 Alignments</button>
+    
+    <div class="results" id="results"></div>
+
+    <script>
+        // Function to find all possible alignments between two sequences
+        function findAlignments(reference, query, minOverlap) {
+            const alignments = [];
+            
+            // Try all possible positions of query relative to reference
+            // Start by placing query completely to the left of reference
+            const startOffset = -(query.length - 1);
+            // End by placing query completely to the right of reference
+            const endOffset = reference.length - 1;
+            
+            for (let offset = startOffset; offset <= endOffset; offset++) {
+                let matches = 0;
+                let compared = 0;
+                
+                // For each position in the alignment, check if bases match
+                for (let i = 0; i < query.length; i++) {
+                    const refIndex = offset + i;
+                    
+                    // Only compare positions that overlap
+                    if (refIndex >= 0 && refIndex < reference.length) {
+                        compared++;
+                        if (reference[refIndex] === query[i]) {
+                            matches++;
+                        }
+                    }
+                }
+                
+                // Only include alignments with minimum overlap
+                if (compared >= minOverlap) {
+                    const percentMatch = (matches / compared) * 100;
+                    
+                    alignments.push({
+                        position: offset,
+                        matches: matches,
+                        compared: compared,
+                        percentMatch: percentMatch,
+                        score: matches  // Use number of exact matches as score
+                    });
+                }
+            }
+            
+            return alignments;
+        }
+        
+        // Function to create a grid-based alignment view
+        function createGridAlignment(reference, query, offset) {
+            let html = '<div class="alignment-grid">';
+            
+            // Calculate visible range
+            const startPos = Math.min(0, offset);
+            const endPos = Math.max(reference.length - 1, offset + query.length - 1);
+            
+            // Add position headers
+            html += '<div class="base-column">';
+            html += '<div class="position-header">#</div>';
+            html += '<div class="base empty-space">R</div>';
+            html += '<div class="match-indicator"></div>';
+            html += '<div class="base empty-space">S</div>';
+            html += '</div>';
+            
+            // Iterate through all positions in the alignment
+            for (let pos = startPos; pos <= endPos; pos++) {
+                const refIndex = pos;
+                const queryIndex = pos - offset;
+                
+                let refBase = '';
+                let queryBase = '';
+                let isMatch = false;
+                
+                // Check if this position has a reference base
+                if (refIndex >= 0 && refIndex < reference.length) {
+                    refBase = reference[refIndex];
+                }
+                
+                // Check if this position has a query base
+                if (queryIndex >= 0 && queryIndex < query.length) {
+                    queryBase = query[queryIndex];
+                }
+                
+                // Check if the bases match
+                isMatch = (refBase !== '' && queryBase !== '' && refBase === queryBase);
+                
+                // Create a column for this position
+                html += '<div class="base-column">';
+                
+                // Add position number
+                html += `<div class="position-header">${refIndex >= 0 ? refIndex : ''}</div>`;
+                
+                // Add reference base
+                if (refBase) {
+                    html += `<div class="base reference-base ${isMatch ? 'match-base' : 'mismatch-base'}">${refBase}</div>`;
+                } else {
+                    html += '<div class="base empty-space">-</div>';
+                }
+                
+                // Add match indicator
+                html += `<div class="match-indicator">${isMatch ? '|' : ' '}</div>`;
+                
+                // Add query base
+                if (queryBase) {
+                    html += `<div class="base sanger-base ${isMatch ? 'match-base' : 'mismatch-base'}">${queryBase}</div>`;
+                } else {
+                    html += '<div class="base empty-space">-</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Function to find the top alignment positions
+        function findTopMatches() {
+            // Get inputs
+            const referenceSeq = document.getElementById('reference').value.replace(/\s/g, '').toUpperCase();
+            const sangerSeq = document.getElementById('sanger').value.replace(/\s/g, '').toUpperCase();
+            
+            if (!referenceSeq || !sangerSeq) {
+                alert('Please enter both sequences');
+                return;
+            }
+            
+            // Get minimum overlap
+            const minOverlap = parseInt(document.getElementById('minOverlap').value) || 3;
+            
+            // Find all alignments
+            const alignments = findAlignments(referenceSeq, sangerSeq, minOverlap);
+            
+            // Sort alignments by score (number of matches) and then by percent match
+            alignments.sort((a, b) => {
+                if (b.matches !== a.matches) {
+                    return b.matches - a.matches;
+                }
+                return b.percentMatch - a.percentMatch;
+            });
+            
+            // Take top 5 alignments
+            const top5 = alignments.slice(0, 5);
+            
+            // Create HTML for results
+            let resultsHTML = '';
+            
+            if (top5.length === 0) {
+                resultsHTML = '<p><strong>No significant alignments found.</strong> Try adjusting your settings or sequences.</p>';
+            } else {
+                top5.forEach((match, index) => {
+                    // Create alignment view for this match
+                    const gridAlignment = createGridAlignment(referenceSeq, sangerSeq, match.position);
+                    
+                    resultsHTML += `
+                        <div class="alignment-block">
+                            <h3 class="match-title">Match #${index + 1} - Position: ${match.position} - <span class="match-value">${match.percentMatch.toFixed(1)}% match (${match.matches}/${match.compared} bases)</span></h3>
+                            ${gridAlignment}
+                        </div>
+                    `;
+                });
+            }
+            
+            // Update the results div
+            document.getElementById('results').innerHTML = resultsHTML;
+        }
+    </script>
+</body>
+</html>
